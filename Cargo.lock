@@ -79,6 +79,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "dirs",
+ "log",
  "rusoto_core",
  "rusoto_credential",
  "rusoto_iam",

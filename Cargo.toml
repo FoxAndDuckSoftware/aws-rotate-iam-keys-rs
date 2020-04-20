@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 clap = "2.33.0"
 dirs = "2.0.2"
+log = "0.4.8"
 rust-ini = "0.15.2"
 rusoto_core = "0.43.0"
 rusoto_credential = "0.43.0"

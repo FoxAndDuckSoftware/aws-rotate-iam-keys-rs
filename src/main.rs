@@ -4,12 +4,13 @@ mod aws_config;
 
 use crate::aws_config::{get_config_location, parse_config_files, ConfigType};
 use clap::{App, Arg};
-use dirs::home_dir;
+
+use log::info;
 use rusoto_core::{HttpClient, Region};
-use rusoto_credential::{CredentialsError, EnvironmentProvider};
-use rusoto_iam::{CreateAccessKeyRequest, Iam, IamClient};
+use rusoto_credential::EnvironmentProvider;
+use rusoto_iam::{Iam, IamClient};
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Represents an Error that has occurred with rotate-iam-keys.
 ///
@@ -34,7 +35,7 @@ impl RotateError {
     }
 }
 
-fn main() {
+async fn main() {
     let matches = App::new("aws-rotate-iam-keys")
         .version("1.0.0")
         .author("Martin Kemp <me@martinke.mp>")
@@ -77,34 +78,42 @@ fn main() {
         )
         .get_matches();
 
-    let cred_location: &Path = match matches.is_present("credfile") {
-        true => Path::new(matches.value_of("credfile").unwrap()),
+    let cred_location: PathBuf = match matches.is_present("credfile") {
+        true => PathBuf::from(matches.value_of("credfile").unwrap()),
         false => get_config_location(ConfigType::Credentials),
     };
 
-    let conf_location: &Path = match matches.is_present("configfile") {
-        true => Path::new(matches.value_of("configfile").unwrap()),
+    let conf_location: PathBuf = match matches.is_present("configfile") {
+        true => PathBuf::from(matches.value_of("configfile").unwrap()),
         false => get_config_location(ConfigType::Config),
     };
 
     let profiles = parse_config_files(conf_location, cred_location).unwrap();
-    for profile in matches.value_of("profile").unwrap().collect() {
-        if !profiles.contains_key(profile) {
-            Err("Profile does not exist in credentials file")
-        }
-        env::set_var(
-            "AWS_ACCESS_KEY_ID",
-            profiles.get(&profile).aws_access_key_id(),
-        );
-        env::set_var(
-            "AWS_SECRET_ACCESS_KEY",
-            profiles.get(&profile).aws_secret_access_key(),
-        );
-        let client = IamClient::new_with(
-            HttpClient::new().unwrap(),
-            EnvironmentProvider::new(),
-            Region::EuWest1,
-        );
-        let resp = client.create_access_key().await.unwrap();
-    }
+    matches
+        .value_of("profile")
+        .unwrap()
+        .collect()
+        .for_each(|profile: &str| async {
+            if !&profiles.contains_key(profile) {
+                Err(RotateError::new(
+                    "Profile does not exist in credentials file",
+                ));
+            }
+            env::set_var(
+                "AWS_ACCESS_KEY_ID",
+                &profiles.get(profile).unwrap().access_key_id,
+            );
+            env::set_var(
+                "AWS_SECRET_ACCESS_KEY",
+                &profiles.get(profile).unwrap().secret_access_key,
+            );
+            let client = IamClient::new_with(
+                HttpClient::new().unwrap(),
+                EnvironmentProvider::default(),
+                Region::EuWest1,
+            );
+            info!("Creating new access key");
+            let resp = client.create_access_key(Default::default()).await.unwrap();
+        });
+    return;
 }

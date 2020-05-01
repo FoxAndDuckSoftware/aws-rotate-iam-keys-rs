@@ -4,13 +4,18 @@ version = "0.1.0"
 authors = ["Martin Kemp <martinkemp@deloitte.co.uk>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "rotate-iam-keys"
+path = "src/main.rs"
 
 [dependencies]
 clap = "2.33.0"
 dirs = "2.0.2"
+env_logger = "0.7.1"
+futures = "0.3.4"
 log = "0.4.8"
 rust-ini = "0.15.2"
 rusoto_core = "0.43.0"
 rusoto_credential = "0.43.0"
 rusoto_iam = "0.43.0"
+tokio = { version = "0.2.20", features = ["full"] }

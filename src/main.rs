@@ -1,3 +1,10 @@
+//! `aws-rotate-iam-keys`.
+//!
+//! This application will allow you to rotate your AWS IAM access keys automatically.
+
+#![warn(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+#![allow(clippy::restriction)]
+
 mod aws_config;
 mod rotate_error;
 
@@ -10,7 +17,9 @@ use futures::future;
 use log::info;
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
-use rusoto_iam::{CreateAccessKeyResponse, DeleteAccessKeyRequest, Iam, IamClient};
+use rusoto_iam::{
+    CreateAccessKeyRequest, CreateAccessKeyResponse, DeleteAccessKeyRequest, Iam, IamClient,
+};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -19,14 +28,12 @@ async fn rotate(
     profiles: HashMap<String, AWSConfig>,
     dry_run: bool,
 ) -> Result<(String, String, String), RotateError> {
-    let old_profile = match profiles.get(profile.as_str()) {
-        Some(p) => p,
-        None => {
-            return Err(RotateError::new(format!(
-                "Profile: {} does not exist in credentials file",
-                profile
-            )));
-        }
+    let old_profile = if let Some(p) = profiles.get(profile.as_str()) {
+        p
+    } else {
+        return Err(RotateError::new(
+            &format!("Profile: {} does not exist in credentials file", profile).as_str(),
+        ));
     };
     let mut client = IamClient::new_with(
         HttpClient::new().unwrap(),
@@ -39,9 +46,12 @@ async fn rotate(
     info!("Creating new access key for profile: {}", profile);
     let mut new_resp = CreateAccessKeyResponse::default();
     if !dry_run {
-        new_resp = match client.create_access_key(Default::default()).await {
+        new_resp = match client
+            .create_access_key(CreateAccessKeyRequest::default())
+            .await
+        {
             Ok(r) => r,
-            Err(e) => return Err(RotateError::new(e)),
+            Err(e) => return Err(RotateError::new(&e)),
         };
         client = IamClient::new_with(
             HttpClient::new().unwrap(),
@@ -57,17 +67,17 @@ async fn rotate(
         client
             .delete_access_key(DeleteAccessKeyRequest {
                 access_key_id: String::from(&old_profile.access_key_id),
-                ..Default::default()
+                ..DeleteAccessKeyRequest::default()
             })
             .await
             .unwrap();
     }
 
-    return Ok((
+    Ok((
         profile,
         new_resp.access_key.access_key_id,
         new_resp.access_key.secret_access_key,
-    ));
+    ))
 }
 
 #[tokio::main]
@@ -77,13 +87,13 @@ async fn main() -> Result<(), RotateError> {
         .setting(AppSettings::ArgRequiredElseHelp)
         .version("1.0.0")
         .author("Martin Kemp <me@martinke.mp>")
-        .about("Rotates your IAM Access Keys")
+        .about("Rotates your IAM Access Keys\n\nhttps://github.com/FoxAndDuckSoftware/aws-rotate-iam-keys-rs")
         .arg(
             Arg::with_name("profile")
                 .short("p")
                 .long("profile")
                 .takes_value(true)
-                .help("profile to rotate")
+                .help("profile(s) to rotate")
                 .long_help("profile to rotate, you can specify multiple profiles for example, --profile dev --profile prod to rotate all of those specified")
                 .number_of_values(1)
                 .multiple(true)
@@ -122,23 +132,23 @@ async fn main() -> Result<(), RotateError> {
         )
         .get_matches();
 
-    let dry_run: bool = *&matches.is_present("dry_run");
+    let dry_run: bool = matches.is_present("dry_run");
     let cred_location = PathBuf::from(
         matches
             .value_of("credfile")
-            .unwrap_or(get_config_location(ConfigType::Credentials)?.as_str()),
+            .unwrap_or(get_config_location(&ConfigType::Credentials)?.as_str()),
     );
 
     let conf_location = PathBuf::from(
         matches
             .value_of("credfile")
-            .unwrap_or(get_config_location(ConfigType::Config)?.as_str()),
+            .unwrap_or(get_config_location(&ConfigType::Config)?.as_str()),
     );
 
     let arg_profiles: Vec<String> = matches
         .values_of("profile")
         .unwrap()
-        .map(|s| s.to_string())
+        .map(ToString::to_string)
         .collect();
 
     let mut profiles = parse_config_files(&conf_location, &cred_location)?;
@@ -154,15 +164,14 @@ async fn main() -> Result<(), RotateError> {
         conf.secret_access_key = sk;
     }
 
-    if !dry_run {
+    if dry_run {
+        Ok(())
+    } else {
         return match write_credentials(profiles, &cred_location) {
             Ok(_) => Ok(()),
-            Err(e) => Err(RotateError::new(format!(
-                "Failed to write credentials: {}",
-                e.message
-            ))),
+            Err(e) => Err(RotateError::new(
+                &format!("Failed to write credentials: {}", e.message).as_str(),
+            )),
         };
-    } else {
-        Ok(())
     }
 }

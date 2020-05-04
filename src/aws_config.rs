@@ -13,11 +13,11 @@ pub struct AWSConfig {
 }
 
 impl AWSConfig {
-    fn new<S>(access_key: S, secret_key: S) -> AWSConfig
+    fn new<S>(access_key: &S, secret_key: &S) -> Self
     where
         S: ToString,
     {
-        AWSConfig {
+        Self {
             access_key_id: access_key.to_string(),
             secret_access_key: secret_key.to_string(),
         }
@@ -51,44 +51,41 @@ pub fn parse_config_files(
             None => continue,
         };
         debug!("{}: {:#?}", profile_name, prop);
-        let section = match cred.section(Some(&profile_name)) {
-            Some(s) => s,
-            None => {
-                info!("Profile: {} has no credentials", &profile_name);
-                continue;
-            }
+        let section = if let Some(s) = cred.section(Some(&profile_name)) {
+            s
+        } else {
+            info!("Profile: {} has no credentials", &profile_name);
+            continue;
         };
-        let ak: &str = match section.get("aws_access_key_id") {
-            Some(a) => a,
-            None => {
-                return Err(RotateError::new(format!(
-                    "No access key for profile: {}",
-                    profile_name
-                )));
-            }
+        let ak: &str = if let Some(a) = section.get("aws_access_key_id") {
+            a
+        } else {
+            return Err(RotateError::new(&format!(
+                "No access key for profile: {}",
+                profile_name
+            )));
         };
-        let sk: &str = match section.get("aws_secret_access_key") {
-            Some(s) => s,
-            None => {
-                return Err(RotateError::new(format!(
-                    "No secret key for profile: {}",
-                    profile_name
-                )));
-            }
+        let sk: &str = if let Some(s) = section.get("aws_secret_access_key") {
+            s
+        } else {
+            return Err(RotateError::new(&format!(
+                "No secret key for profile: {}",
+                profile_name
+            )));
         };
-        res.insert(profile_name, AWSConfig::new(ak, sk));
+        res.insert(profile_name, AWSConfig::new(&ak, &sk));
     }
-    return Ok(res);
+    Ok(res)
 }
 
-pub fn get_config_location(config_type: ConfigType) -> Result<String, RotateError> {
+pub fn get_config_location(config_type: &ConfigType) -> Result<String, RotateError> {
     let env_var;
     let mut default_path = match home_dir() {
         Some(mut home) => {
             home.push(".aws");
             home
         }
-        None => return Err(RotateError::new("Cannot determine home directory")),
+        None => return Err(RotateError::new(&"Cannot determine home directory")),
     };
     match config_type {
         ConfigType::Credentials => {
@@ -124,13 +121,22 @@ pub fn write_credentials(
             .set("aws_access_key_id", conf.access_key_id)
             .set("aws_secret_access_key", conf.secret_access_key);
     }
-    Ok(cred.write_to_file(cred_path).unwrap())
+    match cred.write_to_file(cred_path) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(RotateError::new(&format!(
+            "Failed to write credentials: {}",
+            e
+        ))),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{write_credentials, AWSConfig};
+    use ini::Ini;
+    use std::collections::HashMap;
     use std::fs::{remove_file, File};
+    use std::path::PathBuf;
 
     const TEST_PROFILE: &str = "test";
     const TEST_AK: &str = "ThisIsAnAccessKey";
@@ -139,7 +145,7 @@ mod tests {
 
     #[test]
     fn aws_config() {
-        let a = AWSConfig::new(TEST_AK, TEST_SK);
+        let a = AWSConfig::new(&TEST_AK, &TEST_SK);
         assert_eq!(TEST_AK, a.access_key_id);
         assert_eq!(TEST_SK, a.secret_access_key);
     }
@@ -147,7 +153,7 @@ mod tests {
     #[test]
     fn write_test_credentials() {
         let mut config = HashMap::<String, AWSConfig>::new();
-        config.insert(TEST_PROFILE.to_string(), AWSConfig::new(TEST_AK, TEST_SK));
+        config.insert(TEST_PROFILE.to_string(), AWSConfig::new(&TEST_AK, &TEST_SK));
         let temp_path = PathBuf::from(TEST_CRED_PATH);
         File::create(TEST_CRED_PATH).unwrap();
         write_credentials(config, &temp_path).unwrap();

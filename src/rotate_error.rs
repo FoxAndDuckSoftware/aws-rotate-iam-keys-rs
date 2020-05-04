@@ -1,5 +1,4 @@
-/// Represents an Error that has occurred with rotate-iam-keys.
-///
+//! Represents an Error that has occurred with rotate-iam-keys.
 /// This is an error message from the application, not underlying libraries.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RotateError {
@@ -8,14 +7,14 @@ pub struct RotateError {
 }
 
 impl RotateError {
-    /// Create a new Rotate Error.
+    /// Create a new `RotateError`.
     ///
-    /// * `message` — The Error message for this RotateError.
-    pub fn new<S>(message: S) -> RotateError
+    /// * `message` — The Error message for this `RotateError`.
+    pub fn new<S>(message: &S) -> Self
     where
         S: ToString,
     {
-        RotateError {
+        Self {
             message: message.to_string(),
         }
     }
@@ -23,11 +22,12 @@ impl RotateError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::RotateError;
+    const TEST_ERROR: &str = "Hello, World!";
 
     #[test]
     fn new_rotate_error() {
-        let e = RotateError::new("Hello, World!");
+        let e = RotateError::new(&TEST_ERROR);
         assert_eq!("Hello, World!", e.message)
     }
 }

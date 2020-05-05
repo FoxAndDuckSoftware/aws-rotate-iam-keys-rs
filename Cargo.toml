@@ -6,6 +6,9 @@ repository = "https://github.com/FoxAndDuckSoftware/aws-rotate-iam-keys-rs"
 edition = "2018"
 readme = "README.md"
 license-file = "LICENSE"
+description = "A tool to rotate your AWS IAM access keys"
+keywords = ["cli", "aws", "security"]
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "rotate-iam-keys"

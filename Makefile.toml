@@ -6,3 +6,5 @@ additional_profiles = [
 ]
 [env]
 CARGO_MAKE_TEST_COVERAGE_BINARY_FILTER = "rotate_iam_keys-[a-z0-9]*$"
+CARGO_MAKE_KCOV_EXCLUDE_LINE = "unreachable,kcov-ignore"
+CARGO_MAKE_KCOV_EXCLUDE_REGION = "kcov-ignore-start:kcov-ignore-end"

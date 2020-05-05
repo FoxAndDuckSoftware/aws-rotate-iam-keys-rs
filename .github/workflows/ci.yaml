@@ -21,6 +21,7 @@ jobs:
         uses: davidB/rust-cargo-make@v1
       - name: Run cargo-deny
         uses: EmbarkStudios/cargo-deny-action@v1
+        if: matrix.os == 'ubuntu-latest'
       - name: Run CI
         uses: actions-rs/cargo@v1
         with:

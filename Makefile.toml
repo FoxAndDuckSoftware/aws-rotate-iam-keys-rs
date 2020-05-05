@@ -4,3 +4,5 @@ additional_profiles = [
     "ci-all-build-tasks",
     "ci-static-code-analysis-tasks",
 ]
+[env]
+CARGO_MAKE_TEST_COVERAGE_BINARY_FILTER = "rotate_iam_keys-[a-z0-9]*$"

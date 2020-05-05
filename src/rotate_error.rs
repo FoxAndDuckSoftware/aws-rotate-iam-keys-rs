@@ -1,4 +1,9 @@
 //! Represents an Error that has occurred with rotate-iam-keys.
+
+#[cfg(test)]
+#[path = "./rotate_error_test.rs"]
+mod rotate_error_test;
+
 /// This is an error message from the application, not underlying libraries.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RotateError {
@@ -17,17 +22,5 @@ impl RotateError {
         Self {
             message: message.to_string(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::RotateError;
-    const TEST_ERROR: &str = "Hello, World!";
-
-    #[test]
-    fn new_rotate_error() {
-        let e = RotateError::new(&TEST_ERROR);
-        assert_eq!("Hello, World!", e.message)
     }
 }

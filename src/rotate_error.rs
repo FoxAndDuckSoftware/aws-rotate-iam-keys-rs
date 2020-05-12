@@ -1,5 +1,7 @@
 //! Represents an Error that has occurred with rotate-iam-keys.
 
+use std::fmt;
+
 #[cfg(test)]
 #[path = "./rotate_error_test.rs"]
 mod rotate_error_test;
@@ -22,5 +24,12 @@ impl RotateError {
         Self {
             message: message.to_string(),
         }
+    }
+}
+
+impl fmt::Display for RotateError {
+    /// Display message
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
     }
 }

@@ -4,6 +4,7 @@ use ini::Ini;
 use log::{debug, info};
 use std::collections::HashMap;
 use std::env::var;
+use std::fmt;
 use std::path::PathBuf;
 
 #[cfg(test)]
@@ -25,6 +26,16 @@ impl AWSConfig {
             access_key_id: access_key.to_string(),
             secret_access_key: secret_key.to_string(),
         }
+    }
+}
+
+impl fmt::Display for AWSConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "ak: {}, sk: {}",
+            self.access_key_id, self.secret_access_key
+        )
     }
 }
 
@@ -118,7 +129,16 @@ pub fn write_credentials(
     configs: HashMap<String, AWSConfig>,
     cred_path: &PathBuf,
 ) -> Result<(), RotateError> {
-    let mut cred = Ini::load_from_file(cred_path).unwrap();
+    let mut cred = match Ini::load_from_file(cred_path) {
+        Ok(i) => Ok(i),
+        Err(e) => {
+            return Err(RotateError::new(&format!(
+                "Failed to load credential file at: {}, reason {}",
+                cred_path.to_str().unwrap(),
+                e
+            )))
+        }
+    }?;
 
     for (name, conf) in configs {
         cred.with_section(Some(name))

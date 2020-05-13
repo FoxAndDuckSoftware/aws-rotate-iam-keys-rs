@@ -25,4 +25,4 @@ rust-ini = "0.15.2"
 rusoto_core = "0.43.0"
 rusoto_credential = "0.43.0"
 rusoto_iam = "0.43.0"
-tokio = { version = "0.2.20", features = ["full"] }
+tokio = { version = "0.2.21", features = ["full"] }

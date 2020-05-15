@@ -8,7 +8,7 @@ repository = "https://github.com/FoxAndDuckSoftware/aws-rotate-iam-keys-rs"
 description = "A tool to rotate your AWS IAM access keys"
 keywords = ["cli", "aws", "security"]
 categories = ["command-line-utilities"]
-exclude = [".github/", ".gitignore", "deny.toml", "Makefile.toml"]
+exclude = [".github/", ".gitignore", "deny.toml", "Makefile.toml", "about.hbs", "about.toml"]
 edition = "2018"
 
 [[bin]]
@@ -25,4 +25,10 @@ rust-ini = "0.15.2"
 rusoto_core = "0.43.0"
 rusoto_credential = "0.43.0"
 rusoto_iam = "0.43.0"
-tokio = { version = "0.2.20", features = ["full"] }
+
+[dependencies.tokio]
+version = "0.2.21"
+features = ["full"]
+
+[build-dependencies]
+clap = "2.33.1"

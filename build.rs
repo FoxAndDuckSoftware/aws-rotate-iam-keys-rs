@@ -24,8 +24,9 @@ fn main() {
 
     // Use clap to build completion files.
     let mut app = app();
-    app.gen_completions("rotate-iam-keys", Shell::Bash, &outdir);
-    app.gen_completions("rotate-iam-keys", Shell::Zsh, &outdir);
-    app.gen_completions("rotate-iam-keys", Shell::Fish, &outdir);
-    app.gen_completions("rotate-iam-keys", Shell::PowerShell, &outdir);
+    const BIN_NAME: &str = "rotate-iam-keys";
+    app.gen_completions(BIN_NAME, Shell::Bash, &outdir);
+    app.gen_completions(BIN_NAME, Shell::Zsh, &outdir);
+    app.gen_completions(BIN_NAME, Shell::Fish, &outdir);
+    app.gen_completions(BIN_NAME, Shell::PowerShell, &outdir);
 }

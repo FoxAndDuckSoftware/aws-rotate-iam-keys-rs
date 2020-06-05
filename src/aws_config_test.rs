@@ -7,6 +7,8 @@ use std::fs::{remove_file, File};
 const TEST_PROFILE: &str = "test";
 const TEST_AK: &str = "ThisIsAnAccessKey";
 const TEST_SK: &str = "ThisIsASecretKey";
+const TEST_AK2: &str = "ThisIsAnAccessKey2";
+const TEST_SK2: &str = "ThisIsASecretKey2";
 const TEST_CRED_PATH: &str = "test-credentials";
 
 #[test]
@@ -37,4 +39,16 @@ fn write_test_credentials() {
 
     //cleanup
     remove_file(TEST_CRED_PATH).unwrap()
+}
+
+#[test]
+fn test_nondestructive_write() {
+    let mut config = HashMap::<String, AWSConfig>::new();
+    config.insert(TEST_PROFILE.to_string(), AWSConfig::new(&TEST_AK, &TEST_SK));
+
+    let mut temp_path = env::current_dir().unwrap();
+    temp_path.push(TEST_CRED_PATH);
+
+    File::create(&temp_path).unwrap();
+    write_credentials(config, &temp_path).unwrap();
 }

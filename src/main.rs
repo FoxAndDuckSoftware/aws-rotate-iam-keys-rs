@@ -14,7 +14,7 @@ use crate::aws_config::{
 };
 use crate::rotate_error::RotateError;
 use futures::future;
-use log::info;
+use log::{debug, info};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_iam::{
@@ -105,7 +105,7 @@ async fn main() -> Result<(), RotateError> {
         .collect();
 
     let mut profiles = parse_config_files(&conf_location, &cred_location)?;
-
+    debug!("{:#?}", profiles);
     let mut tasks = Vec::with_capacity(arg_profiles.len());
     for profile in arg_profiles {
         tasks.push(tokio::spawn(rotate(profile, profiles.clone(), dry_run)))

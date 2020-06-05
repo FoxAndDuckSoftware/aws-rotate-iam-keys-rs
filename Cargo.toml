@@ -22,9 +22,9 @@ env_logger = "0.7.1"
 futures = "0.3.5"
 log = "0.4.8"
 rust-ini = "0.15.2"
-rusoto_core = "0.43.0"
-rusoto_credential = "0.43.0"
-rusoto_iam = "0.43.0"
+rusoto_core = "0.44.0"
+rusoto_credential = "0.44.0"
+rusoto_iam = "0.44.0"
 
 [dependencies.tokio]
 version = "0.2.21"

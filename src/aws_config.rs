@@ -126,7 +126,7 @@ pub fn get_config_location(config_type: &ConfigType) -> Result<String, RotateErr
 }
 
 pub fn write_credentials(
-    configs: HashMap<String, AWSConfig>,
+    configs: &HashMap<String, AWSConfig>,
     cred_path: &PathBuf,
 ) -> Result<(), RotateError> {
     let mut cred = match Ini::load_from_file(cred_path) {
@@ -142,8 +142,8 @@ pub fn write_credentials(
 
     for (name, conf) in configs {
         cred.with_section(Some(name))
-            .set("aws_access_key_id", conf.access_key_id)
-            .set("aws_secret_access_key", conf.secret_access_key);
+            .set("aws_access_key_id", &conf.access_key_id)
+            .set("aws_secret_access_key", &conf.secret_access_key);
     }
     match cred.write_to_file(cred_path) {
         Ok(_) => Ok(()),

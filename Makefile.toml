@@ -4,6 +4,8 @@ additional_profiles = [
     "ci-all-build-tasks",
     "ci-static-code-analysis-tasks",
 ]
+[tasks.notice]
+script = ["cargo about generate about.hbs > NOTICE.md"]
 [env]
 CARGO_MAKE_TEST_COVERAGE_BINARY_FILTER = "rotate_iam_keys-[a-z0-9]*$"
 CARGO_MAKE_KCOV_EXCLUDE_LINE = "unreachable,kcov-ignore"

@@ -120,7 +120,7 @@ async fn main() -> Result<(), RotateError> {
     if dry_run {
         Ok(())
     } else {
-        return match write_credentials(profiles, &cred_location) {
+        return match write_credentials(&profiles, &cred_location) {
             Ok(_) => Ok(()),
             Err(e) => Err(RotateError::new(
                 &format!("Failed to write credentials: {}", e.message).as_str(),

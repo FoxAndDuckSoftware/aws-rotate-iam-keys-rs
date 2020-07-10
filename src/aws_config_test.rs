@@ -3,6 +3,7 @@ use ini::Ini;
 use std::collections::HashMap;
 use std::env;
 use std::fs::{remove_file, File};
+use std::io::Write;
 
 const TEST_PROFILE: &str = "test";
 const TEST_AK: &str = "ThisIsAnAccessKey";
@@ -71,6 +72,25 @@ fn test_nondestructive_write() {
     assert_eq!(test_section.get("aws_access_key_id").unwrap(), TEST_AK2);
     assert_eq!(test_section.get("aws_secret_access_key").unwrap(), TEST_SK2);
 
+    //cleanup
+    remove_file(&temp_path.as_path()).unwrap()
+}
+
+#[test]
+fn test_failed_write() {
+    let mut config = HashMap::<String, AWSConfig>::new();
+    config.insert(TEST_PROFILE.to_string(), AWSConfig::new(&TEST_AK, &TEST_SK));
+
+    let mut temp_path = env::current_dir().unwrap();
+    temp_path.push("failed-write");
+
+    let mut file = File::create(&temp_path).unwrap();
+    file.write_all("asdfda;lkjhgs;oijfdjlkjkldsajlkd".as_ref())
+        .unwrap();
+    assert!(
+        write_credentials(&config, &temp_path).is_err(),
+        "cred file should be invalid"
+    );
     //cleanup
     remove_file(&temp_path.as_path()).unwrap()
 }

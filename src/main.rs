@@ -17,16 +17,14 @@ use futures::future;
 use log::{debug, info};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
-use rusoto_iam::{
-    CreateAccessKeyRequest, CreateAccessKeyResponse, DeleteAccessKeyRequest, Iam, IamClient,
-};
+use rusoto_iam::{CreateAccessKeyRequest, DeleteAccessKeyRequest, Iam, IamClient};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use tokio::time::Duration;
 
 async fn rotate(
     profile: String,
     profiles: HashMap<String, AWSConfig>,
-    dry_run: bool,
 ) -> Result<(String, String, String), RotateError> {
     let old_profile = if let Some(p) = profiles.get(profile.as_str()) {
         p
@@ -44,34 +42,31 @@ async fn rotate(
         Region::UsEast1,
     );
     info!("Creating new access key for profile: {}", profile);
-    let mut new_resp = CreateAccessKeyResponse::default();
-    if !dry_run {
-        new_resp = match client
-            .create_access_key(CreateAccessKeyRequest::default())
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => return Err(RotateError::new(&e)),
-        };
-        client = IamClient::new_with(
-            HttpClient::new().unwrap(),
-            StaticProvider::new_minimal(
-                String::from(&new_resp.access_key.access_key_id),
-                String::from(&new_resp.access_key.secret_access_key),
-            ),
-            Region::UsEast1,
-        );
-    }
+    let new_resp = match client
+        .create_access_key(CreateAccessKeyRequest::default())
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => return Err(RotateError::new(&e)),
+    };
+    // The key is not active immediately so we wait for 10 seconds
+    tokio::time::delay_for(Duration::new(10, 0)).await;
+    client = IamClient::new_with(
+        HttpClient::new().unwrap(),
+        StaticProvider::new_minimal(
+            String::from(&new_resp.access_key.access_key_id),
+            String::from(&new_resp.access_key.secret_access_key),
+        ),
+        Region::UsEast1,
+    );
     info!("Deleting old access key for profile: {}", profile);
-    if !dry_run {
-        client
-            .delete_access_key(DeleteAccessKeyRequest {
-                access_key_id: String::from(&old_profile.access_key_id),
-                ..DeleteAccessKeyRequest::default()
-            })
-            .await
-            .unwrap();
-    }
+    client
+        .delete_access_key(DeleteAccessKeyRequest {
+            access_key_id: String::from(&old_profile.access_key_id),
+            ..DeleteAccessKeyRequest::default()
+        })
+        .await
+        .unwrap();
 
     Ok((
         profile,
@@ -85,7 +80,7 @@ async fn main() -> Result<(), RotateError> {
     env_logger::init();
     let matches = app::app().get_matches();
 
-    let dry_run: bool = matches.is_present("dry_run");
+    let dry_run: bool = matches.is_present("dry-run");
     let cred_location = PathBuf::from(
         matches
             .value_of("credfile")
@@ -107,19 +102,19 @@ async fn main() -> Result<(), RotateError> {
     let mut profiles = parse_config_files(&conf_location, &cred_location)?;
     debug!("{:#?}", profiles);
     let mut tasks = Vec::with_capacity(arg_profiles.len());
-    for profile in arg_profiles {
-        tasks.push(tokio::spawn(rotate(profile, profiles.clone(), dry_run)))
-    }
-    for result in future::join_all(tasks).await {
-        let (profile, ak, sk) = result.unwrap().unwrap();
-        let conf = profiles.get_mut(&profile).unwrap();
-        conf.access_key_id = ak;
-        conf.secret_access_key = sk;
-    }
-
     if dry_run {
+        println!("Would have rotated {:?}", arg_profiles);
         Ok(())
     } else {
+        for profile in arg_profiles {
+            tasks.push(tokio::spawn(rotate(profile, profiles.clone())))
+        }
+        for result in future::join_all(tasks).await {
+            let (profile, ak, sk) = result.unwrap().unwrap();
+            let conf = profiles.get_mut(&profile).unwrap();
+            conf.access_key_id = ak;
+            conf.secret_access_key = sk;
+        }
         return match write_credentials(&profiles, &cred_location) {
             Ok(_) => Ok(()),
             Err(e) => Err(RotateError::new(

@@ -1,8 +1,6 @@
 name: Publish
-on:
-  push:
-    tags:
-      - '*'
+release:
+  types: [published]
 jobs:
   publish:
     name: Publish
@@ -25,11 +23,18 @@ jobs:
       - name: Run cargo-deny
         uses: EmbarkStudios/cargo-deny-action@v1
         if: matrix.os == 'ubuntu-latest'
-      - name: Run CI
+      - name: Login
+        uses: actions-rs/cargo@v1
+        with:
+          command: login
+          args: ${CRATES_IO_TOKEN}
+        env:
+          CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+      - name: Publish
         uses: actions-rs/cargo@v1
         with:
           command: make
-          args: ci-flow
+          args: publish-flow
         env:
           CARGO_MAKE_RUN_CODECOV: true
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

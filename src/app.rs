@@ -43,9 +43,9 @@ pub fn app() -> App<'static, 'static> {
                 .multiple(false)
         )
         .arg(
-            Arg::with_name("dry_run")
+            Arg::with_name("dry-run")
                 .short("d")
-                .long("dry_run")
+                .long("dry-run")
                 .help("runs without affecting anything, useful to check before commiting")
                 .multiple(false)
         )

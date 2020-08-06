@@ -10,7 +10,7 @@ mod aws_config;
 mod rotate_error;
 
 use crate::aws_config::{
-    get_config_location, parse_config_files, write_credentials, AWSConfig, ConfigType,
+    get_config_path, parse_config_files, write_credentials, AWSConfig, ConfigType,
 };
 use crate::rotate_error::RotateError;
 use futures::future;
@@ -18,21 +18,13 @@ use log::{debug, info};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_iam::{CreateAccessKeyRequest, DeleteAccessKeyRequest, Iam, IamClient};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::time::Duration;
 
 async fn rotate(
     profile: String,
-    profiles: HashMap<String, AWSConfig>,
+    old_profile: AWSConfig,
 ) -> Result<(String, String, String), RotateError> {
-    let old_profile = if let Some(p) = profiles.get(profile.as_str()) {
-        p
-    } else {
-        return Err(RotateError::new(
-            &format!("Profile: {} does not exist in credentials file", profile).as_str(),
-        ));
-    };
     let mut client = IamClient::new_with(
         HttpClient::new().unwrap(),
         StaticProvider::new_minimal(
@@ -81,45 +73,50 @@ async fn main() -> Result<(), RotateError> {
     let matches = app::app().get_matches();
 
     let dry_run: bool = matches.is_present("dry-run");
-    let cred_location = PathBuf::from(
-        matches
-            .value_of("credfile")
-            .unwrap_or(get_config_location(&ConfigType::Credentials)?.as_str()),
-    );
+    let cred_location = match matches.value_of("credfile") {
+        Some(p) => PathBuf::from(p),
+        None => get_config_path(&ConfigType::Credentials)?,
+    };
 
-    let conf_location = PathBuf::from(
-        matches
-            .value_of("credfile")
-            .unwrap_or(get_config_location(&ConfigType::Config)?.as_str()),
-    );
+    let conf_location = match matches.value_of("configfile") {
+        Some(p) => PathBuf::from(p),
+        None => get_config_path(&ConfigType::Config)?,
+    };
 
     let arg_profiles: Vec<String> = matches
         .values_of("profile")
-        .unwrap()
+        .expect("No profiles specified")
         .map(ToString::to_string)
         .collect();
 
-    let mut profiles = parse_config_files(&conf_location, &cred_location)?;
-    debug!("{:#?}", profiles);
+    let mut conf_profiles = parse_config_files(&conf_location, &cred_location)?;
+    debug!("{:#?}", conf_profiles);
     let mut tasks = Vec::with_capacity(arg_profiles.len());
     if dry_run {
         println!("Would have rotated {:?}", arg_profiles);
         Ok(())
     } else {
         for profile in arg_profiles {
-            tasks.push(tokio::spawn(rotate(profile, profiles.clone())))
+            let old_profile = match conf_profiles.remove(profile.as_str()) {
+                Some(p) => p,
+                None => {
+                    return Err(RotateError::new(&format!(
+                        "Profile: {} does not exist in credentials file",
+                        profile.as_str()
+                    )))
+                }
+            };
+            tasks.push(tokio::spawn(rotate(profile.clone(), old_profile.clone())));
+            conf_profiles
+                .insert(profile, old_profile)
+                .expect("Failed to reinsert old profile");
         }
         for result in future::join_all(tasks).await {
             let (profile, ak, sk) = result.unwrap().unwrap();
-            let conf = profiles.get_mut(&profile).unwrap();
+            let conf = conf_profiles.get_mut(&profile).unwrap();
             conf.access_key_id = ak;
             conf.secret_access_key = sk;
         }
-        return match write_credentials(&profiles, &cred_location) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(RotateError::new(
-                &format!("Failed to write credentials: {}", e.message).as_str(),
-            )),
-        };
+        write_credentials(&conf_profiles, &cred_location)
     }
 }

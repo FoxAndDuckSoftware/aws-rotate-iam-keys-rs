@@ -7,7 +7,6 @@ use std::fmt;
 mod rotate_error_test;
 
 /// This is an error message from the application, not underlying libraries.
-#[derive(Clone, Debug, PartialEq)]
 pub struct RotateError {
     /// The underlying error message for rotate error.
     pub message: String,
@@ -27,9 +26,25 @@ impl RotateError {
     }
 }
 
+impl Clone for RotateError {
+    fn clone(&self) -> Self {
+        Self {
+            message: self.message.clone(),
+        }
+    }
+}
+
 impl fmt::Display for RotateError {
     /// Display message
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)
+        f.write_str(&self.message)
+    }
+}
+
+impl fmt::Debug for RotateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RotateError")
+            .field("message", &self.message)
+            .finish()
     }
 }

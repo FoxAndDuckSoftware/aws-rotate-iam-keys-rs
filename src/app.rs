@@ -5,7 +5,7 @@ pub fn app() -> App<'static, 'static> {
     App::new("aws-rotate-iam-keys")
         .setting(AppSettings::ArgRequiredElseHelp)
         .version("1.0.0")
-        .author("Martin Kemp <me@martinke.mp>")
+        .author("Martin Kemp <martin@foxandducksoftware.co.uk>")
         .about("Rotates your IAM Access Keys\n\nhttps://github.com/FoxAndDuckSoftware/aws-rotate-iam-keys-rs")
         .arg(
             Arg::with_name("profile")

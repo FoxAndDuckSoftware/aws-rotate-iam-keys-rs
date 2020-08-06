@@ -1,3 +1,5 @@
+//! Represents an AWS IAM Key, Access Key ID and Secret Access Key
+
 use crate::RotateError;
 use dirs::home_dir;
 use ini::Ini;
@@ -11,13 +13,17 @@ use std::path::PathBuf;
 #[path = "./aws_config_test.rs"]
 mod aws_config_test;
 
-#[derive(Debug, Clone)]
+/// A simple object containing the Access Key ID and Secret Key
 pub struct AWSConfig {
     pub(crate) access_key_id: String,
     pub(crate) secret_access_key: String,
 }
 
 impl AWSConfig {
+    /// Create a new `AWSConfig`
+    ///
+    /// * `access_key` — The Access Key ID for this `AWSConfig`.
+    /// * `secret_key` — The Secret Key for this `AWSConfig`.
     fn new<S>(access_key: &S, secret_key: &S) -> Self
     where
         S: ToString,
@@ -29,13 +35,31 @@ impl AWSConfig {
     }
 }
 
+impl Clone for AWSConfig {
+    fn clone(&self) -> Self {
+        Self {
+            access_key_id: self.access_key_id.clone(),
+            secret_access_key: self.secret_access_key.clone(),
+        }
+    }
+}
+
 impl fmt::Display for AWSConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ak: {}, sk: {}",
-            self.access_key_id, self.secret_access_key
+            "AK: {}, SK: {}",
+            &self.access_key_id, &self.secret_access_key
         )
+    }
+}
+
+impl fmt::Debug for AWSConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AWSConfig")
+            .field("access_key_id", &self.access_key_id)
+            .field("secret_access_key", &self.secret_access_key)
+            .finish()
     }
 }
 
@@ -53,6 +77,7 @@ pub fn parse_config_files(
     let mut res: HashMap<String, AWSConfig> = HashMap::new();
     for (sec, prop) in conf.iter() {
         if prop.contains_key("source_profile") {
+            // profiles that have a source_profile are not useful.
             continue;
         }
         let profile_name: String = match sec {
@@ -93,7 +118,7 @@ pub fn parse_config_files(
     Ok(res)
 }
 
-pub fn get_config_location(config_type: &ConfigType) -> Result<String, RotateError> {
+pub fn get_config_path(config_type: &ConfigType) -> Result<PathBuf, RotateError> {
     let env_var;
     let mut default_path = match home_dir() {
         Some(mut home) => {
@@ -122,7 +147,7 @@ pub fn get_config_location(config_type: &ConfigType) -> Result<String, RotateErr
         }
         Err(_) => default_path,
     };
-    Ok(path.to_str().unwrap().to_string())
+    Ok(path)
 }
 
 pub fn write_credentials(
@@ -130,15 +155,15 @@ pub fn write_credentials(
     cred_path: &PathBuf,
 ) -> Result<(), RotateError> {
     let mut cred = match Ini::load_from_file(cred_path) {
-        Ok(i) => Ok(i),
+        Ok(i) => i,
         Err(e) => {
             return Err(RotateError::new(&format!(
-                "Failed to load credential file at: {}, reason {}",
+                "Failed to load the credential file at: {}, reason {}",
                 cred_path.to_str().unwrap(),
                 e
-            )))
+            )));
         }
-    }?;
+    };
 
     for (name, conf) in configs {
         cred.with_section(Some(name))

@@ -17,7 +17,9 @@ use futures::future;
 use log::{debug, info};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
-use rusoto_iam::{CreateAccessKeyRequest, DeleteAccessKeyRequest, Iam, IamClient};
+use rusoto_iam::{
+    CreateAccessKeyRequest, DeleteAccessKeyRequest, Iam, IamClient, ListAccessKeysRequest,
+};
 use std::path::PathBuf;
 use tokio::time::Duration;
 
@@ -39,10 +41,27 @@ async fn rotate(
         .await
     {
         Ok(r) => r,
-        Err(e) => return Err(RotateError::new(&e)),
+        Err(e) => return Err(RotateError::from(e)),
     };
-    // The key is not active immediately so we wait for 10 seconds
-    tokio::time::delay_for(Duration::new(10, 0)).await;
+    // The key is not active immediately, so we wait for it to be activated.
+    let mut active_key = false;
+    while !active_key {
+        match client
+            .list_access_keys(ListAccessKeysRequest::default())
+            .await
+        {
+            Ok(resp) => {
+                for key_meta in resp.access_key_metadata {
+                    if key_meta.access_key_id.unwrap() == new_resp.access_key.access_key_id
+                        && &key_meta.status.unwrap() == "Active"
+                    {
+                        active_key = true
+                    }
+                }
+            }
+            Err(e) => return Err(RotateError::from(e)),
+        }
+    }
     client = IamClient::new_with(
         HttpClient::new().unwrap(),
         StaticProvider::new_minimal(

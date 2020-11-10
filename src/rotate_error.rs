@@ -1,5 +1,7 @@
 //! Represents an Error that has occurred with rotate-iam-keys.
 
+use rusoto_core::RusotoError;
+use std::error::Error;
 use std::fmt;
 
 #[cfg(test)]
@@ -22,6 +24,14 @@ impl RotateError {
     {
         Self {
             message: message.to_string(),
+        }
+    }
+}
+
+impl<E: Error + 'static> From<RusotoError<E>> for RotateError {
+    fn from(err: RusotoError<E>) -> Self {
+        Self {
+            message: format!("{}", err),
         }
     }
 }

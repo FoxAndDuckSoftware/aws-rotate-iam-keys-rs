@@ -119,35 +119,34 @@ pub fn parse_config_files(
 }
 
 pub fn get_config_path(config_type: &ConfigType) -> Result<PathBuf, RotateError> {
-    let env_var;
-    let mut default_path = match home_dir() {
-        Some(mut home) => {
-            home.push(".aws");
-            home
+    let mut home = match home_dir() {
+        Some(mut p) => {
+            p.push(".aws");
+            p
         }
-        None => return Err(RotateError::new(&"Cannot determine home directory")),
+        None => return Err(RotateError::new(&"Failed to find home directory")),
     };
-    match config_type {
+    let env_var = match config_type {
         ConfigType::Credentials => {
-            env_var = "AWS_SHARED_CREDENTIALS_FILE";
-            default_path.push("credentials")
+            home.push("credentials");
+            "AWS_SHARED_CREDENTIALS_FILE"
         }
         ConfigType::Config => {
-            env_var = "AWS_CONFIG_FILE";
-            default_path.push("config")
+            home.push("config");
+            "AWS_CONFIG_FILE"
         }
-    }
-    let path = match var(env_var) {
+    };
+    let final_path = match var(env_var) {
         Ok(value) => {
             if value.is_empty() {
-                default_path
+                home
             } else {
                 PathBuf::from(value.as_str())
             }
         }
-        Err(_) => default_path,
+        Err(_) => home,
     };
-    Ok(path)
+    Ok(final_path)
 }
 
 pub fn write_credentials(

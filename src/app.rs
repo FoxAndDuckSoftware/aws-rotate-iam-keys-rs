@@ -13,9 +13,9 @@ pub fn app() -> App<'static, 'static> {
                 .long("profile")
                 .takes_value(true)
                 .help("profile(s) to rotate")
-                .long_help("profile to rotate, you can specify multiple profiles for example, --profile dev --profile prod to rotate all of those specified")
-                .number_of_values(1)
+                .long_help("profile to rotate, you can specify multiple profiles, for example: `--profile=dev,prod` or `-p dev -p prod` to rotate all of those specified")
                 .multiple(true)
+                .use_delimiter(true)
                 .required(true)
         )
         .arg(
@@ -46,7 +46,7 @@ pub fn app() -> App<'static, 'static> {
             Arg::with_name("dry-run")
                 .short("d")
                 .long("dry-run")
-                .help("runs without affecting anything, useful to check before commiting")
+                .help("runs without affecting anything, useful to run before fully committing to rotate your keys")
                 .multiple(false)
         )
 }

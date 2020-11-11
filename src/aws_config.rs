@@ -1,7 +1,6 @@
 //! Represents an AWS IAM Key, Access Key ID and Secret Access Key
 
 use crate::RotateError;
-use dirs::home_dir;
 use ini::Ini;
 use log::{debug, info};
 use std::collections::HashMap;
@@ -119,7 +118,7 @@ pub fn parse_config_files(
 }
 
 pub fn get_config_path(config_type: &ConfigType) -> Result<PathBuf, RotateError> {
-    let mut home = match home_dir() {
+    let mut home = match dirs_next::home_dir() {
         Some(mut p) => {
             p.push(".aws");
             p

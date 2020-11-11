@@ -21,7 +21,6 @@ use rusoto_iam::{
     CreateAccessKeyRequest, DeleteAccessKeyRequest, Iam, IamClient, ListAccessKeysRequest,
 };
 use std::path::PathBuf;
-use tokio::time::Duration;
 
 async fn rotate(
     profile: String,

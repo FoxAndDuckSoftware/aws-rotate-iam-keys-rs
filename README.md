@@ -41,7 +41,7 @@ Licensed under either of:
 ## Contribution
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as laid down in the Apache-2.0 license, will be dual licensed as above, without any additional terms or conditions.
 
-All commits must be signed off using `-s` which certifies that you wrote or otherwise have the right to submit the code in accordance with [the Developer Certificate of Origin.][DCO]
+All commits MUST be signed off using `-s` which certifies that you wrote or otherwise have the right to submit the code in accordance with [the Developer Certificate of Origin.][DCO]
 
 ## About
 Copyright © 2020 Fox and Duck Software Ltd

@@ -1,7 +1,7 @@
 [![CI][ci_badge]][ci_link]
 [![Built with cargo-make][cargo_make_badge]][cargo_make]
 [![codecov][codecov_badge]][codecov]
-[![FOSSA Status][fossa_badge]]
+[![FOSSA Status][fossa_badge]][fossa]
 
 ## Usage:
 ```
@@ -63,4 +63,5 @@ Registered in England & Wales No. 9546077
 
 [fossa]: https://app.fossa.com/projects/git%2Bgithub.com%2FFoxAndDuckSoftware%2Faws-rotate-iam-keys-rs?ref=badge_small
 [fossa_badge]: https://app.fossa.com/api/projects/git%2Bgithub.com%2FFoxAndDuckSoftware%2Faws-rotate-iam-keys-rs.svg?type=small
+
 [DCO]: https://developercertificate.org/

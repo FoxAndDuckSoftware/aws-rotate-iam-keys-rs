@@ -7,7 +7,7 @@ use clap::Shell;
 include!("src/app.rs");
 
 fn main() {
-    // OUT_DIR is set by Cargo and it's where any additional build artifacts
+    // Cargo sets OUT_DIR, and it is where any additional build artifacts
     // are written.
     let outdir = match env::var_os("OUT_DIR") {
         Some(outdir) => outdir,

@@ -32,3 +32,6 @@ features = ["rt", "rt-multi-thread", "macros"]
 
 [build-dependencies]
 clap = "2.33.3"
+
+[profile.release]
+lto = true

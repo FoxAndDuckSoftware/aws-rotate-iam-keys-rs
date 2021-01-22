@@ -13,14 +13,40 @@ use crate::aws_config::{
     get_config_path, parse_config_files, write_credentials, AWSConfig, ConfigType,
 };
 use crate::rotate_error::RotateError;
-use futures::future;
-use log::{debug, info};
+use log::{debug, error, info};
 use rusoto_core::{HttpClient, Region};
 use rusoto_credential::StaticProvider;
 use rusoto_iam::{
     CreateAccessKeyRequest, DeleteAccessKeyRequest, Iam, IamClient, ListAccessKeysRequest,
 };
 use std::path::PathBuf;
+use tokio::task;
+use tokio::time::{sleep, Duration};
+
+async fn check_key(ak: String, sk: String) {
+    let client = IamClient::new_with(
+        HttpClient::new().unwrap(),
+        StaticProvider::new_minimal(ak, sk),
+        Region::UsEast1,
+    );
+    info!("Checking if new access key is active");
+    // The key is not active immediately, so we wait for it to be activated.
+    let mut active_key = false;
+    while !active_key {
+        if client
+            .list_access_keys(ListAccessKeysRequest::default())
+            .await
+            .is_ok()
+        {
+            info!("Key is active!");
+            active_key = true
+        } else {
+            sleep(Duration::from_secs(3)).await;
+            info!("Retrying...");
+            continue;
+        }
+    }
+}
 
 async fn rotate(
     profile: String,
@@ -35,54 +61,40 @@ async fn rotate(
         Region::UsEast1,
     );
     info!("Creating new access key for profile: {}", profile);
-    let new_resp = match client
+    let (new_access_key, new_secret_key) = match client
         .create_access_key(CreateAccessKeyRequest::default())
         .await
     {
-        Ok(r) => r,
-        Err(e) => return Err(RotateError::from(e)),
-    };
-    // The key is not active immediately, so we wait for it to be activated.
-    let mut active_key = false;
-    while !active_key {
-        match client
-            .list_access_keys(ListAccessKeysRequest::default())
-            .await
-        {
-            Ok(resp) => {
-                for key_meta in resp.access_key_metadata {
-                    if key_meta.access_key_id.unwrap() == new_resp.access_key.access_key_id
-                        && &key_meta.status.unwrap() == "Active"
-                    {
-                        active_key = true
-                    }
-                }
-            }
-            Err(e) => return Err(RotateError::from(e)),
+        Ok(r) => (r.access_key.access_key_id, r.access_key.secret_access_key),
+        Err(e) => {
+            let mut err = RotateError::from(e);
+            err.profile = Some(profile);
+            return Err(err);
         }
-    }
+    };
+    check_key(new_access_key.clone(), new_secret_key.clone()).await;
     client = IamClient::new_with(
         HttpClient::new().unwrap(),
-        StaticProvider::new_minimal(
-            String::from(&new_resp.access_key.access_key_id),
-            String::from(&new_resp.access_key.secret_access_key),
-        ),
+        StaticProvider::new_minimal(new_access_key.clone(), new_secret_key.clone()),
         Region::UsEast1,
     );
     info!("Deleting old access key for profile: {}", profile);
-    client
+    match client
         .delete_access_key(DeleteAccessKeyRequest {
             access_key_id: String::from(&old_profile.access_key_id),
             ..DeleteAccessKeyRequest::default()
         })
         .await
-        .unwrap();
+    {
+        Ok(_) => {}
+        Err(e) => {
+            let mut err = RotateError::from(e);
+            err.profile = Some(profile);
+            return Err(err);
+        }
+    }
 
-    Ok((
-        profile,
-        new_resp.access_key.access_key_id,
-        new_resp.access_key.secret_access_key,
-    ))
+    Ok((profile, new_access_key, new_secret_key))
 }
 
 #[tokio::main]
@@ -115,22 +127,31 @@ async fn main() -> Result<(), RotateError> {
         Ok(())
     } else {
         for profile in arg_profiles {
-            let old_profile = match conf_profiles.remove(profile.as_str()) {
+            let old_profile = match conf_profiles.get(profile.as_str()) {
                 Some(p) => p,
                 None => {
-                    return Err(RotateError::new(&format!(
-                        "Profile: {} does not exist in credentials file",
-                        profile.as_str()
-                    )))
+                    return Err(RotateError::new(
+                        &format!(
+                            "Profile: {} does not exist in credentials file",
+                            profile.as_str()
+                        ),
+                        Some(profile),
+                    ));
                 }
             };
-            tasks.push(tokio::spawn(rotate(profile.clone(), old_profile.clone())));
-            conf_profiles
-                .insert(profile, old_profile)
-                .expect("Failed to reinsert old profile");
+            tasks.push(task::spawn(rotate(profile, old_profile.clone())));
         }
-        for result in future::join_all(tasks).await {
-            let (profile, ak, sk) = result.unwrap().unwrap();
+        for task in tasks {
+            let (profile, ak, sk) = match task.await.expect("Failed to await task") {
+                Ok(res) => res,
+                Err(e) => {
+                    error!("Failed to rotate due to: {}", e.message);
+                    let err_profile = e.profile.expect("No profile attached to `RotateError`");
+                    // remove failed profile to prevent attempts to rewrite
+                    conf_profiles.remove(err_profile.as_str());
+                    continue;
+                }
+            };
             let conf = conf_profiles.get_mut(&profile).unwrap();
             conf.access_key_id = ak;
             conf.secret_access_key = sk;

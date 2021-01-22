@@ -2,11 +2,11 @@
 
 use crate::RotateError;
 use ini::Ini;
-use log::{debug, info};
+use log::debug;
 use std::collections::HashMap;
 use std::env::var;
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[cfg(test)]
 #[path = "./aws_config_test.rs"]
@@ -68,8 +68,8 @@ pub enum ConfigType {
 }
 
 pub fn parse_config_files(
-    conf_path: &PathBuf,
-    cred_path: &PathBuf,
+    conf_path: &Path,
+    cred_path: &Path,
 ) -> Result<HashMap<String, AWSConfig>, RotateError> {
     let conf = Ini::load_from_file(conf_path).unwrap();
     let cred = Ini::load_from_file(cred_path).unwrap();
@@ -93,24 +93,24 @@ pub fn parse_config_files(
         let section = if let Some(s) = cred.section(Some(&profile_name)) {
             s
         } else {
-            info!("Profile: {} has no credentials", &profile_name);
+            debug!("Profile: {} has no credentials", &profile_name);
             continue;
         };
         let ak: &str = if let Some(a) = section.get("aws_access_key_id") {
             a
         } else {
-            return Err(RotateError::new(&format!(
-                "No access key for profile: {}",
-                profile_name
-            )));
+            return Err(RotateError::new(
+                &format!("No access key for profile: {}", profile_name),
+                Some(profile_name),
+            ));
         };
         let sk: &str = if let Some(s) = section.get("aws_secret_access_key") {
             s
         } else {
-            return Err(RotateError::new(&format!(
-                "No secret key for profile: {}",
-                profile_name
-            )));
+            return Err(RotateError::new(
+                &format!("No secret key for profile: {}", profile_name),
+                Some(profile_name),
+            ));
         };
         res.insert(profile_name, AWSConfig::new(&ak, &sk));
     }
@@ -123,7 +123,7 @@ pub fn get_config_path(config_type: &ConfigType) -> Result<PathBuf, RotateError>
             p.push(".aws");
             p
         }
-        None => return Err(RotateError::new(&"Failed to find home directory")),
+        None => return Err(RotateError::new_simple(&"Failed to find home directory")),
     };
     let env_var = match config_type {
         ConfigType::Credentials => {
@@ -150,12 +150,12 @@ pub fn get_config_path(config_type: &ConfigType) -> Result<PathBuf, RotateError>
 
 pub fn write_credentials(
     configs: &HashMap<String, AWSConfig>,
-    cred_path: &PathBuf,
+    cred_path: &Path,
 ) -> Result<(), RotateError> {
     let mut cred = match Ini::load_from_file(cred_path) {
         Ok(i) => i,
         Err(e) => {
-            return Err(RotateError::new(&format!(
+            return Err(RotateError::new_simple(&format!(
                 "Failed to load the credential file at: {}, reason {}",
                 cred_path.to_str().unwrap(),
                 e
@@ -170,7 +170,7 @@ pub fn write_credentials(
     }
     match cred.write_to_file(cred_path) {
         Ok(_) => Ok(()),
-        Err(e) => Err(RotateError::new(&format!(
+        Err(e) => Err(RotateError::new_simple(&format!(
             "Failed to write credentials: {}",
             e
         ))),

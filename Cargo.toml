@@ -18,16 +18,16 @@ path = "src/main.rs"
 [dependencies]
 clap = "2.33.3"
 dirs-next = "2.0.0"
-env_logger = "0.8.1"
+env_logger = "0.8.2"
 futures = "0.3.8"
 log = "0.4.11"
 rust-ini = "0.16.0"
-rusoto_core = "0.45.0"
-rusoto_credential = "0.45.0"
-rusoto_iam = "0.45.0"
+rusoto_core = "0.46.0"
+rusoto_credential = "0.46.0"
+rusoto_iam = "0.46.0"
 
 [dependencies.tokio]
-version = "0.3.3"
+version = "1.0.1"
 features = ["rt", "rt-multi-thread", "macros"]
 
 [build-dependencies]

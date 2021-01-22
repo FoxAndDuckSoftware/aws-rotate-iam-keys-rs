@@ -6,25 +6,19 @@ on:
 jobs:
   publish:
     name: Publish
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        rust: [stable]
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
           override: true
       - name: Install cargo-make
         uses: davidB/rust-cargo-make@v1
       - name: Run cargo-deny
         uses: EmbarkStudios/cargo-deny-action@v1
-        if: matrix.os == 'ubuntu-latest'
       - name: Login
         uses: actions-rs/cargo@v1
         with:
